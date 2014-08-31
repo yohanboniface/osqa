@@ -23,6 +23,7 @@ from forum import settings
 
 from decorators import command, CommandException, RefreshPageCommand
 
+
 class NotEnoughRepPointsException(CommandException):
     def __init__(self, action, user_reputation=None, reputation_required=None, node=None):
         if reputation_required is not None and user_reputation is not None:
@@ -33,8 +34,8 @@ class NotEnoughRepPointsException(CommandException):
             ) % {
                 'action': action,
                 'faq_url': reverse('faq'),
-                'reputation_required' : reputation_required,
-                'user_reputation' : user_reputation,
+                'reputation_required': reputation_required,
+                'user_reputation': user_reputation,
             }
         else:
             message = _(
@@ -42,44 +43,39 @@ class NotEnoughRepPointsException(CommandException):
             ) % {'action': action, 'faq_url': reverse('faq')}
         super(NotEnoughRepPointsException, self).__init__(message)
 
+
 class CannotDoOnOwnException(CommandException):
     def __init__(self, action):
-        super(CannotDoOnOwnException, self).__init__(
-                _(
-                        """Sorry but you cannot %(action)s your own post.<br />Please check the <a href='%(faq_url)s'>faq</a>"""
-                        ) % {'action': action, 'faq_url': reverse('faq')}
-                )
+        super(CannotDoOnOwnException, self).__init__(_(
+            """Sorry but you cannot %(action)s your own post.<br />Please check the <a href='%(faq_url)s'>faq</a>"""
+        ) % {'action': action, 'faq_url': reverse('faq')})
+
 
 class AnonymousNotAllowedException(CommandException):
     def __init__(self, action):
-        super(AnonymousNotAllowedException, self).__init__(
-                _(
-                        """Sorry but anonymous users cannot %(action)s.<br />Please login or create an account <a href='%(signin_url)s'>here</a>."""
-                        ) % {'action': action, 'signin_url': reverse('auth_signin')}
-                )
+        super(AnonymousNotAllowedException, self).__init__(_(
+            """Sorry but anonymous users cannot %(action)s.<br />Please login or create an account <a href='%(signin_url)s'>here</a>."""
+        ) % {'action': action, 'signin_url': reverse('auth_signin')})
+
 
 class NotEnoughLeftException(CommandException):
     def __init__(self, action, limit):
-        super(NotEnoughLeftException, self).__init__(
-                _(
-                        """Sorry, but you don't have enough %(action)s left for today..<br />The limit is %(limit)s per day..<br />Please check the <a href='%(faq_url)s'>faq</a>"""
-                        ) % {'action': action, 'limit': limit, 'faq_url': reverse('faq')}
-                )
+        super(NotEnoughLeftException, self).__init__(_(
+            """Sorry, but you don't have enough %(action)s left for today..<br />The limit is %(limit)s per day..<br />Please check the <a href='%(faq_url)s'>faq</a>"""
+        ) % {'action': action, 'limit': limit, 'faq_url': reverse('faq')})
+
 
 class CannotDoubleActionException(CommandException):
     def __init__(self, action):
-        super(CannotDoubleActionException, self).__init__(
-                _(
-                        """Sorry, but you cannot %(action)s twice the same post.<br />Please check the <a href='%(faq_url)s'>faq</a>"""
-                        ) % {'action': action, 'faq_url': reverse('faq')}
-                )
+        super(CannotDoubleActionException, self).__init__(_(
+            """Sorry, but you cannot %(action)s twice the same post.<br />Please check the <a href='%(faq_url)s'>faq</a>"""
+        ) % {'action': action, 'faq_url': reverse('faq')})
 
 
 @decorate.withfn(command)
 def vote_post(request, id, vote_type):
     if not request.method == 'POST':
         raise CommandException(_("Invalid request"))
-
 
     post = get_object_or_404(Node, id=id).leaf
     user = request.user
@@ -108,11 +104,12 @@ def vote_post(request, id, vote_type):
 
     if old_vote:
         if old_vote.action_date < datetime.datetime.now() - datetime.timedelta(days=int(settings.DENY_UNVOTE_DAYS)):
-            raise CommandException(
-                    _("Sorry but you cannot cancel a vote after %(ndays)d %(tdays)s from the original vote") %
-                    {'ndays': int(settings.DENY_UNVOTE_DAYS),
-                     'tdays': ungettext('day', 'days', int(settings.DENY_UNVOTE_DAYS))}
-                    )
+            raise CommandException(_(
+                "Sorry but you cannot cancel a vote after %(ndays)d %(tdays)s from the original vote"
+            ) % {
+                'ndays': int(settings.DENY_UNVOTE_DAYS),
+                'tdays': ungettext('day', 'days', int(settings.DENY_UNVOTE_DAYS))}
+            )
 
         old_vote.cancel(ip=request.META['REMOTE_ADDR'])
         score_inc = (old_vote.__class__ == VoteDownAction) and 1 or -1
@@ -122,19 +119,21 @@ def vote_post(request, id, vote_type):
         score_inc = (new_vote_cls == VoteUpAction) and 1 or -1
 
     response = {
-    'commands': {
-    'update_post_score': [id, score_inc],
-    'update_user_post_vote': [id, vote_type]
-    }
+        'commands': {
+            'update_post_score': [id, score_inc],
+            'update_user_post_vote': [id, vote_type]
+        }
     }
 
     votes_left = (user_can_vote_count_today - user_vote_count_today) + (vote_type == 'none' and -1 or 1)
 
     if int(settings.START_WARN_VOTES_LEFT) >= votes_left:
-        response['message'] = _("You have %(nvotes)s %(tvotes)s left today.") % \
-                    {'nvotes': votes_left, 'tvotes': ungettext('vote', 'votes', votes_left)}
+        response['message'] = _(
+            "You have %(nvotes)s %(tvotes)s left today."
+        ) % {'nvotes': votes_left, 'tvotes': ungettext('vote', 'votes', votes_left)}
 
     return response
+
 
 @decorate.withfn(command)
 def flag_post(request, id):
@@ -161,7 +160,7 @@ def flag_post(request, id):
     try:
         current = FlagAction.objects.get(canceled=False, user=user, node=post)
         raise CommandException(
-                _("You already flagged this post with the following reason: %(reason)s") % {'reason': current.extra})
+            _("You already flagged this post with the following reason: %(reason)s") % {'reason': current.extra})
     except ObjectDoesNotExist:
         reason = request.POST.get('prompt', '').strip()
 
@@ -171,6 +170,7 @@ def flag_post(request, id):
         FlagAction(user=user, node=post, extra=reason, ip=request.META['REMOTE_ADDR']).save()
 
     return {'message': _("Thank you for your report. A moderator will review your submission shortly.")}
+
 
 @decorate.withfn(command)
 def like_comment(request, id):
@@ -184,7 +184,7 @@ def like_comment(request, id):
         raise CannotDoOnOwnException(_('like'))
 
     if not user.can_like_comment(comment):
-        raise NotEnoughRepPointsException( _('like comments'), node=comment)
+        raise NotEnoughRepPointsException(_('like comments'), node=comment)
 
     like = VoteAction.get_action_for(node=comment, user=user)
 
@@ -196,11 +196,12 @@ def like_comment(request, id):
         likes = True
 
     return {
-    'commands': {
-    'update_post_score': [comment.id, likes and 1 or -1],
-    'update_user_post_vote': [comment.id, likes and 'up' or 'none']
+        'commands': {
+            'update_post_score': [comment.id, likes and 1 or -1],
+            'update_user_post_vote': [comment.id, likes and 'up' or 'none']
+        }
     }
-    }
+
 
 @decorate.withfn(command)
 def delete_comment(request, id):
@@ -211,16 +212,13 @@ def delete_comment(request, id):
         raise AnonymousNotAllowedException(_('delete comments'))
 
     if not user.can_delete_comment(comment):
-        raise NotEnoughRepPointsException( _('delete comments'))
+        raise NotEnoughRepPointsException(_('delete comments'))
 
     if not comment.nis.deleted:
         DeleteAction(node=comment, user=user, ip=request.META['REMOTE_ADDR']).save()
 
-    return {
-    'commands': {
-    'remove_comment': [comment.id],
-    }
-    }
+    return {'commands': {'remove_comment': [comment.id]}}
+
 
 @decorate.withfn(command)
 def mark_favorite(request, id):
@@ -238,11 +236,12 @@ def mark_favorite(request, id):
         added = True
 
     return {
-    'commands': {
-    'update_favorite_count': [added and 1 or -1],
-    'update_favorite_mark': [added and 'on' or 'off']
+        'commands': {
+            'update_favorite_count': [added and 1 or -1],
+            'update_favorite_mark': [added and 'on' or 'off']
+        }
     }
-    }
+
 
 @decorate.withfn(command)
 def comment(request, id):
@@ -270,36 +269,33 @@ def comment(request, id):
         comment = get_object_or_404(Comment, id=request.POST['id'])
 
         if not user.can_edit_comment(comment):
-            raise NotEnoughRepPointsException( _('edit comments'))
+            raise NotEnoughRepPointsException(_('edit comments'))
 
         comment = ReviseAction(user=user, node=comment, ip=request.META['REMOTE_ADDR']).save(
-                data=dict(text=comment_text)).node
+            data=dict(text=comment_text)).node
     else:
         if not user.can_comment(post):
-            raise NotEnoughRepPointsException( _('comment'))
+            raise NotEnoughRepPointsException(_('comment'))
 
         comment = CommentAction(user=user, ip=request.META['REMOTE_ADDR']).save(
-                data=dict(text=comment_text, parent=post)).node
+            data=dict(text=comment_text, parent=post)).node
 
     if comment.active_revision.revision == 1:
         return {
-        'commands': {
-        'insert_comment': [
-                id, comment.id, comment.comment, user.decorated_name, user.get_profile_url(),
-                reverse('delete_comment', kwargs={'id': comment.id}),
-                reverse('node_markdown', kwargs={'id': comment.id}),
-                reverse('convert_comment', kwargs={'id': comment.id}),
-                user.can_convert_comment_to_answer(comment),
-                bool(settings.SHOW_LATEST_COMMENTS_FIRST)
+            'commands': {
+                'insert_comment': [
+                    id, comment.id, comment.comment, user.decorated_name, user.get_profile_url(),
+                    reverse('delete_comment', kwargs={'id': comment.id}),
+                    reverse('node_markdown', kwargs={'id': comment.id}),
+                    reverse('convert_comment', kwargs={'id': comment.id}),
+                    user.can_convert_comment_to_answer(comment),
+                    bool(settings.SHOW_LATEST_COMMENTS_FIRST)
                 ]
-        }
+            }
         }
     else:
-        return {
-        'commands': {
-        'update_comment': [comment.id, comment.comment]
-        }
-        }
+        return {'commands': {'update_comment': [comment.id, comment.comment]}}
+
 
 @decorate.withfn(command)
 def node_markdown(request, id):
@@ -335,16 +331,21 @@ def accept_answer(request, id):
         commands['unmark_accepted'] = [answer.id]
     else:
         if settings.MAXIMUM_ACCEPTED_ANSWERS and (question.accepted_count >= settings.MAXIMUM_ACCEPTED_ANSWERS):
-            raise CommandException(ungettext("This question already has an accepted answer.",
-                "Sorry but this question has reached the limit of accepted answers.", int(settings.MAXIMUM_ACCEPTED_ANSWERS)))
+            raise CommandException(ungettext(
+                "This question already has an accepted answer.",
+                "Sorry but this question has reached the limit of accepted answers.",
+                int(settings.MAXIMUM_ACCEPTED_ANSWERS)
+            ))
 
         if settings.MAXIMUM_ACCEPTED_PER_USER and question.accepted_count:
             accepted_from_author = question.accepted_answers.filter(author=answer.author).count()
 
             if accepted_from_author >= settings.MAXIMUM_ACCEPTED_PER_USER:
-                raise CommandException(ungettext("The author of this answer already has an accepted answer in this question.",
-                "Sorry but the author of this answer has reached the limit of accepted answers per question.", int(settings.MAXIMUM_ACCEPTED_PER_USER)))             
-
+                raise CommandException(ungettext(
+                    "The author of this answer already has an accepted answer in this question.",
+                    "Sorry but the author of this answer has reached the limit of accepted answers per question.",
+                    int(settings.MAXIMUM_ACCEPTED_PER_USER)
+                ))
 
         AcceptAnswerAction(node=answer, user=user, ip=request.META['REMOTE_ADDR']).save()
 
@@ -365,6 +366,7 @@ def accept_answer(request, id):
         commands['mark_accepted'] = [answer.id]
 
     return {'commands': commands}
+
 
 @decorate.withfn(command)
 def delete_post(request, id):
@@ -388,6 +390,7 @@ def delete_post(request, id):
         ret['commands']['mark_deleted'] = [post.node_type, id]
 
     return ret
+
 
 @decorate.withfn(command)
 def close(request, id, close):
@@ -418,6 +421,7 @@ def close(request, id, close):
 
     return RefreshPageCommand()
 
+
 @decorate.withfn(command)
 def wikify(request, id):
     node = get_object_or_404(Node, id=id)
@@ -441,6 +445,7 @@ def wikify(request, id):
         WikifyAction(node=node, user=user, ip=request.META['REMOTE_ADDR']).save()
 
     return RefreshPageCommand()
+
 
 @decorate.withfn(command)
 def convert_to_comment(request, id):
@@ -476,6 +481,7 @@ def convert_to_comment(request, id):
 
     return RefreshPageCommand()
 
+
 @decorate.withfn(command)
 def convert_comment_to_answer(request, id):
     user = request.user
@@ -486,16 +492,17 @@ def convert_comment_to_answer(request, id):
         question = parent
     else:
         question = parent.question
-    
+
     if not user.is_authenticated():
         raise AnonymousNotAllowedException(_("convert comments to answers"))
 
     if not user.can_convert_comment_to_answer(comment):
         raise NotEnoughRepPointsException(_("convert comments to answers"))
-    
+
     CommentToAnswerAction(user=user, node=comment, ip=request.META['REMOTE_ADDR']).save(data=dict(question=question))
 
     return RefreshPageCommand()
+
 
 @decorate.withfn(command)
 def subscribe(request, id, user=None):
@@ -528,9 +535,10 @@ def subscribe(request, id, user=None):
         }
     }
 
-#internally grouped views - used by the tagging system
+
+# internally grouped views - used by the tagging system
 @ajax_login_required
-def mark_tag(request, tag=None, **kwargs):#tagging system
+def mark_tag(request, tag=None, **kwargs):  # tagging system
     action = kwargs['action']
     ts = MarkedTag.objects.filter(user=request.user, tag__name=tag)
     if action == 'remove':
@@ -549,28 +557,31 @@ def mark_tag(request, tag=None, **kwargs):#tagging system
             ts.update(reason=reason)
     return HttpResponse(json.dumps(''), mimetype="application/json")
 
+
 def matching_tags(request):
     if len(request.GET['q']) == 0:
         raise CommandException(_("Invalid request"))
 
-    possible_tags = Tag.active.filter(name__icontains = request.GET['q'])
+    possible_tags = Tag.active.filter(name__icontains=request.GET['q'])
     tag_output = ''
     for tag in possible_tags:
         tag_output += "%s|%s|%s\n" % (tag.id, tag.name, tag.used_count)
 
     return HttpResponse(tag_output, mimetype="text/plain")
 
+
 def matching_users(request):
     if len(request.GET['q']) == 0:
         raise CommandException(_("Invalid request"))
 
-    possible_users = User.objects.filter(username__icontains = request.GET['q'])
+    possible_users = User.objects.filter(username__icontains=request.GET['q'])
     output = ''
 
     for user in possible_users:
         output += ("%s|%s|%s\n" % (user.id, user.decorated_name, user.reputation))
 
     return HttpResponse(output, mimetype="text/plain")
+
 
 def related_questions(request):
     if request.POST and request.POST.get('title', None):
@@ -579,11 +590,14 @@ def related_questions(request):
         if can_rank and isinstance(can_rank, basestring):
             questions = questions.order_by(can_rank)
 
-        return HttpResponse(json.dumps(
-                [dict(title=q.title, url=q.get_absolute_url(), score=q.score, summary=q.summary)
-                 for q in questions.filter_state(deleted=False)[0:10]]), mimetype="application/json")
+        return HttpResponse(json.dumps([
+            dict(title=q.title, url=q.get_absolute_url(), score=q.score, summary=q.summary)
+            for q in questions.filter_state(deleted=False)[0:10]]),
+            mimetype="application/json"
+        )
     else:
         raise Http404()
+
 
 @decorate.withfn(command)
 def answer_permanent_link(request, id):
@@ -595,14 +609,15 @@ def answer_permanent_link(request, id):
 
     if not request.POST:
         # Display the template
-        return render_to_response('node/permanent_link.html', { 'url' : url, })
+        return render_to_response('node/permanent_link.html', {'url': url})
 
     return {
-        'commands' : {
-            'copy_url' : [request.POST['permanent_link_url'],],
+        'commands': {
+            'copy_url': [request.POST['permanent_link_url']],
         },
-        'message' : _("The permanent URL to the answer has been copied to your clipboard."),
+        'message': _("The permanent URL to the answer has been copied to your clipboard."),
     }
+
 
 @decorate.withfn(command)
 def award_points(request, user_id, answer_id):
@@ -620,9 +635,9 @@ def award_points(request, user_id, answer_id):
 
     if not request.POST:
         return render_to_response("node/award_points.html", {
-            'user' : user,
-            'awarded_user' : awarded_user,
-            'reputation_to_comment' : str(settings.REP_TO_COMMENT)
+            'user': user,
+            'awarded_user': awarded_user,
+            'reputation_to_comment': str(settings.REP_TO_COMMENT)
         })
     else:
         points = int(request.POST['points'])
@@ -639,5 +654,4 @@ def award_points(request, user_id, answer_id):
         # We take points from the awarding user
         AwardPointsAction(user=request.user, node=answer, extra=extra).save(data=dict(value=points, affected=awarded_user))
 
-        return { 'message' : _("You have awarded %(awarded_user)s with %(points)d points") % {'awarded_user' : awarded_user, 'points' : points} }
-
+        return {'message': _("You have awarded %(awarded_user)s with %(points)d points") % {'awarded_user': awarded_user, 'points': points}}
